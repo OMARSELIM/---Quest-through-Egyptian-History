@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Trophy, HelpCircle, History, Sparkles, RefreshCcw, Scroll, Award, ArrowLeft, CheckCircle2, XCircle } from 'lucide-react';
 import { Era, Riddle, GameState } from './types';
 import { generateRiddle, checkAnswerWithAI } from './services/geminiService';
@@ -15,6 +15,13 @@ const App: React.FC = () => {
     history: []
   });
 
+  // Use a ref to keep track of history for the callback to avoid stale closures
+  const historyRef = useRef<{ question: string; correct: boolean }[]>([]);
+
+  useEffect(() => {
+    historyRef.current = gameState.history;
+  }, [gameState.history]);
+
   const [selectedEra, setSelectedEra] = useState<Era | null>(null);
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
   const [showFunFact, setShowFunFact] = useState(false);
@@ -24,7 +31,9 @@ const App: React.FC = () => {
     setShowFunFact(false);
     setSelectedOption(null);
     try {
-      const riddle = await generateRiddle(era);
+      // Pass list of already asked questions from the ref
+      const questionsAsked = historyRef.current.map(h => h.question);
+      const riddle = await generateRiddle(era, questionsAsked);
       setGameState(prev => ({ ...prev, currentRiddle: riddle, loading: false }));
     } catch (err) {
       console.error(err);
@@ -60,7 +69,7 @@ const App: React.FC = () => {
         feedback: 'incorrect',
         attempts: prev.attempts + 1,
         loading: false,
-        showHint: prev.attempts >= 0 // Show hint after first wrong try
+        showHint: true
       }));
       setTimeout(() => {
         setGameState(prev => ({ ...prev, feedback: 'neutral' }));
@@ -95,7 +104,7 @@ const App: React.FC = () => {
           </div>
           
           <p className="text-xl text-[#5d4037] leading-relaxed max-w-lg mx-auto">
-            اختر عصراً تاريخياً واختبر معلوماتك من خلال الألغاز المشوقة.
+            اختر عصراً تاريخياً واختبر معلوماتك من خلال الألغاز المشوقة. لن تتكرر الأسئلة التي تجيب عليها!
           </p>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -145,7 +154,7 @@ const App: React.FC = () => {
           {gameState.loading && !gameState.currentRiddle ? (
             <div className="py-20 flex flex-col items-center justify-center space-y-4">
               <div className="w-12 h-12 border-4 border-[#c19a6b] border-t-transparent rounded-full animate-spin"></div>
-              <p className="text-[#8d6e63] font-medium animate-pulse">يتم تحضير اللغز التالي...</p>
+              <p className="text-[#8d6e63] font-medium animate-pulse">يتم استدعاء لغز تاريخي فريد...</p>
             </div>
           ) : gameState.currentRiddle ? (
             <div className="space-y-8">
@@ -245,7 +254,7 @@ const App: React.FC = () => {
       </main>
 
       <footer className="max-w-4xl mx-auto mt-12 text-center text-[#8d6e63] text-sm font-medium opacity-60">
-        <p>مصمم لمحبي التاريخ المصري - جميع الحقوق محفوظة {new Date().getFullYear()}</p>
+        <p>مصمم لمحبي التاريخ المصري - لن يتكرر أي سؤال قمت بحله بنجاح.</p>
       </footer>
 
       <style>{`

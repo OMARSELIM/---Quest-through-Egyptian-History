@@ -4,13 +4,18 @@ import { Era, Riddle } from "../types";
 
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
 
-export const generateRiddle = async (era: Era): Promise<Riddle> => {
+export const generateRiddle = async (era: Era, history: string[]): Promise<Riddle> => {
   const eraPrompt = era === Era.ALL ? "أي عصر من تاريخ مصر" : era;
+  const historyPrompt = history.length > 0 
+    ? `تجنب تماماً تكرار هذه الأسئلة أو المواضيع التي تم طرحها سابقاً: [${history.join(', ')}]` 
+    : "";
   
   const response = await ai.models.generateContent({
     model: 'gemini-3-flash-preview',
-    contents: `أنت خبير في تاريخ مصر. قم بإنشاء لغز تاريخي ممتع عن ${eraPrompt}. 
+    contents: `أنت خبير في تاريخ مصر. قم بإنشاء لغز تاريخي ممتع وفريد عن ${eraPrompt}. 
     يجب أن يكون اللغز عن شخصية، مكان، أو حدث مهم.
+    ${historyPrompt}
+    تأكد من أن اللغز جديد ومبتكر ولم يسبق ذكره.
     قم بتوفير 4 خيارات للإجابة، واحد منها فقط هو الصحيح.
     تأكد من أن الخيارات منطقية ومتقاربة لزيادة التحدي.`,
     config: {
@@ -40,7 +45,6 @@ export const generateRiddle = async (era: Era): Promise<Riddle> => {
 
   try {
     const data = JSON.parse(response.text.trim());
-    // Ensure options are shuffled so the answer isn't always at the same index
     const shuffledOptions = [...data.options].sort(() => Math.random() - 0.5);
     
     return {
